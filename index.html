@@ -1,0 +1,1351 @@
+<!doctype html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Food Tracker</title>
+<meta name="theme-color" content="#1d6b55">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Food Tracker">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: single phone column, sticky day header, fixed bottom tab bar, bottom sheets for entry forms. */
+:root {
+  --bg: #f4f6f3;
+  --surface: #ffffff;
+  --sunken: #eaefeb;
+  --ink: #16201b;
+  --muted: #5a6961;
+  --line: #d9e1db;
+  --accent: #1d6b55;
+  --accent-ink: #ffffff;
+  --accent-soft: #dfeee7;
+  --good: #2f7d4f;
+  --warn: #b26a12;
+  --bad: #b23a3a;
+  --symp: #9a4a1d;
+  --symp-soft: #f8e9df;
+  --shadow: 0 1px 2px rgba(22,32,27,.06), 0 6px 20px rgba(22,32,27,.06);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r: 14px;
+  --tab-h: 62px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1411;
+    --surface: #161f1a;
+    --sunken: #1c2721;
+    --ink: #e5ece8;
+    --muted: #93a39a;
+    --line: #27332c;
+    --accent: #55bb97;
+    --accent-ink: #06130d;
+    --accent-soft: #1a3329;
+    --good: #5cc085;
+    --warn: #e0a24a;
+    --bad: #ec7b7b;
+    --symp: #f0a777;
+    --symp-soft: #33231a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.45 var(--f-body);
+  -webkit-text-size-adjust: 100%;
+  padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom, 0px) + 84px);
+}
+h1, h2, h3 { font-family: var(--f-display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+[hidden] { display: none !important; }
+
+.wrap { max-width: 640px; margin: 0 auto; padding-inline: 16px; }
+
+/* Header */
+.top {
+  position: sticky; top: 0; z-index: 5;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  padding-top: env(safe-area-inset-top, 0px);
+  border-bottom: 1px solid var(--line);
+}
+.top .wrap { display: flex; align-items: center; gap: 8px; padding-block: 10px; min-height: 56px; }
+.top h1 { font-size: 20px; flex: 1; min-width: 0; }
+.daynav { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+.daynav .label { flex: 1; text-align: center; min-width: 0; }
+.daynav .label strong { display: block; font-family: var(--f-display); font-size: 19px; }
+.daynav .label span { font-size: 13px; color: var(--muted); }
+.iconbtn {
+  width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); display: grid; place-items: center; flex: none;
+}
+.iconbtn svg { width: 20px; height: 20px; }
+
+main.wrap { padding-block: 16px; display: grid; gap: 16px; }
+
+/* Cards and summary */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; box-shadow: var(--shadow); }
+.card h2 { font-size: 17px; margin-bottom: 10px; }
+.kcal-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.kcal-big { font-family: var(--f-display); font-size: 34px; font-weight: 700; line-height: 1; }
+.kcal-big small { font-family: var(--f-body); font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+.kcal-left { font-size: 14px; color: var(--muted); }
+.bar { height: 8px; background: var(--sunken); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+.bar.over > i { background: var(--warn); }
+.macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.macro .k { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.macro .v { font-weight: 600; }
+.macro .bar { height: 5px; margin-top: 6px; }
+.note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+
+/* Timeline */
+.timeline { display: grid; gap: 8px; }
+.item {
+  display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: start;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  text-align: left; width: 100%;
+}
+.item .t { font-size: 14px; color: var(--muted); padding-top: 1px; }
+.item .main { min-width: 0; }
+.item .name { font-weight: 600; overflow-wrap: anywhere; }
+.item .sub { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.item .ing { font-size: 12.5px; color: var(--muted); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item .right { text-align: right; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.item .right small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.item.symptom { background: var(--symp-soft); border-color: color-mix(in srgb, var(--symp) 30%, var(--line)); }
+.item.symptom .name { color: var(--symp); }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--sunken); color: var(--muted); }
+.sev { display: inline-grid; place-items: center; min-width: 38px; padding: 3px 8px; border-radius: 99px; font-size: 13px; font-weight: 700; color: #fff; }
+.sev.s0 { background: var(--good); } .sev.s1 { background: var(--warn); } .sev.s2 { background: var(--bad); }
+@media (prefers-color-scheme: dark) { .sev { color: #0e1411; } }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--symp-soft); color: var(--symp); font-weight: 600; }
+
+.empty { text-align: center; padding: 28px 16px; color: var(--muted); border: 1.5px dashed var(--line); border-radius: var(--r); }
+.empty strong { display: block; color: var(--ink); font-family: var(--f-display); font-size: 18px; margin-bottom: 4px; }
+
+/* Action bar above tabs */
+.actions {
+  position: fixed; left: 0; right: 0; z-index: 6;
+  bottom: calc(var(--tab-h) + env(safe-area-inset-bottom, 0px));
+  padding: 10px 16px; display: flex; gap: 10px; justify-content: center;
+  background: linear-gradient(to top, var(--bg) 60%, transparent);
+}
+.actions .btn { flex: 1; max-width: 300px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 48px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); font-weight: 600; text-decoration: none;
+}
+.btn svg { width: 20px; height: 20px; flex: none; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.symp { background: var(--symp-soft); color: var(--symp); border-color: color-mix(in srgb, var(--symp) 35%, transparent); }
+.btn.danger { color: var(--bad); }
+.btn.danger.armed { background: var(--bad); color: var(--surface); border-color: var(--bad); }
+.btn.small { min-height: 38px; padding: 0 12px; font-size: 14px; border-radius: 10px; }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+/* Tab bar */
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 7;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.tabs .wrap { display: grid; grid-template-columns: repeat(4, 1fr); height: var(--tab-h); padding-inline: 4px; }
+.tabs button {
+  border: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+}
+.tabs button svg { width: 22px; height: 22px; }
+.tabs button[aria-current="page"] { color: var(--accent); }
+
+/* History */
+.daylist { display: grid; gap: 8px; }
+.dayrow {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+}
+.dayrow .d { font-weight: 600; }
+.dayrow .m { font-size: 13px; color: var(--muted); }
+.dayrow .r { text-align: right; font-size: 14px; }
+
+/* Forms */
+.field { display: grid; gap: 6px; }
+.field > label, .lbl { font-size: 13px; font-weight: 600; color: var(--muted); }
+.input, select.input, textarea.input {
+  width: 100%; min-height: 46px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface); font-size: 16px;
+}
+input.input { min-width: 0; }
+input[type=date].input, input[type=datetime-local].input { -webkit-appearance: none; appearance: none; display: block; }
+textarea.input { min-height: 84px; resize: vertical; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.row > *, .row3 > * { min-width: 0; }
+.form { display: grid; gap: 14px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--sunken); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button { border: 0; background: none; border-radius: 8px; min-height: 38px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.computed { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.computed strong { font-family: var(--f-display); }
+.check { display: flex; gap: 10px; align-items: center; font-size: 15px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+input[type=range] { width: 100%; accent-color: var(--accent); height: 32px; }
+.sevrow { display: flex; align-items: center; gap: 12px; }
+.sevrow output { min-width: 56px; text-align: center; }
+.hint { font-size: 13px; color: var(--muted); }
+.msg { font-size: 14px; padding: 10px 12px; border-radius: 10px; background: var(--sunken); }
+.msg.warn { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); }
+.msg.err { background: color-mix(in srgb, var(--bad) 14%, var(--surface)); }
+
+/* Bottom sheet */
+.sheet-bg { position: fixed; inset: 0; background: rgba(8,14,11,.45); z-index: 20; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 21;
+  max-height: calc(100% - env(safe-area-inset-top, 0px) - 24px); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--bg); border-radius: 18px 18px 0 0;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+}
+.sheet-head {
+  position: sticky; top: 0; z-index: 2; background: var(--bg);
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line);
+}
+.sheet-head h2 { flex: 1; font-size: 19px; }
+.sheet-body { padding: 16px; display: grid; gap: 14px; max-width: 640px; margin: 0 auto; }
+.finder-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.results { display: grid; gap: 6px; }
+.result {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left; width: 100%;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+.result .n { font-weight: 600; overflow-wrap: anywhere; }
+.result .b { font-size: 13px; color: var(--muted); }
+.result > div { min-width: 0; }
+.section-label { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; color: var(--muted); margin-top: 4px; }
+.prod-head { display: flex; gap: 12px; align-items: center; }
+.prod-head img { width: 56px; height: 56px; object-fit: contain; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); flex: none; }
+.prod-head .meta { font-size: 13px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+
+/* Scanner */
+.scanner { position: fixed; inset: 0; z-index: 30; background: #000; color: #fff; display: flex; flex-direction: column; }
+.scanner-head { display: flex; align-items: center; justify-content: space-between; padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px; }
+.scanner-head h2 { font-size: 18px; }
+#reader { flex: 1; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+#reader video { width: 100% !important; height: auto !important; max-height: 100%; object-fit: cover; }
+.scanner-foot { padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); display: grid; gap: 10px; background: #0b0f0d; }
+.scanner-foot .input { background: #1b221e; border-color: #2c3630; color: #fff; }
+.scanner-foot .btn { background: #1b221e; border-color: #2c3630; color: #fff; }
+.scanner-foot .btn.primary { background: #55bb97; border-color: #55bb97; color: #06130d; }
+#scan-msg { font-size: 14px; color: #c9d6cf; min-height: 20px; }
+.scanner .iconbtn { background: #1b221e; border-color: #2c3630; color: #fff; }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 40;
+  bottom: calc(var(--tab-h) + env(safe-area-inset-bottom, 0px) + 80px);
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 500;
+  max-width: calc(100% - 32px); box-shadow: var(--shadow);
+}
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.stat { background: var(--sunken); border-radius: 10px; padding: 10px 12px; }
+.stat .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.stat .v { font-family: var(--f-display); font-size: 22px; font-weight: 700; }
+.tbl-wrap { overflow-x: auto; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.tbl th, table.tbl td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.tbl th { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+table.tbl td.r, table.tbl th.r { text-align: right; }
+.stack { display: grid; gap: 10px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (max-width: 380px) { .macros { gap: 8px; } .kcal-big { font-size: 30px; } }
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header class="top">
+  <div class="wrap">
+    <div class="daynav" id="hdr-day">
+      <button class="iconbtn" id="day-prev" aria-label="Previous day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="label"><strong id="day-title">Today</strong><span id="day-sub" class="num"></span></div>
+      <button class="iconbtn" id="day-next" aria-label="Next day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+    <h1 id="hdr-title" hidden></h1>
+  </div>
+</header>
+
+<!-- ===== Day ===== -->
+<main class="wrap" id="view-day">
+  <div class="msg warn" id="install-hint" hidden></div>
+  <section class="card" aria-label="Daily totals">
+    <div class="kcal-row">
+      <div class="kcal-big num"><span id="t-kcal">0</span><small>kcal</small></div>
+      <div class="kcal-left num" id="t-kcal-left"></div>
+    </div>
+    <div class="bar" id="t-kcal-bar"><i style="width:0"></i></div>
+    <div class="macros">
+      <div class="macro"><div class="k">Protein</div><div class="v num" id="t-protein">0 g</div><div class="bar" id="t-protein-bar"><i style="width:0"></i></div></div>
+      <div class="macro"><div class="k">Carbs</div><div class="v num" id="t-carbs">0 g</div><div class="bar" id="t-carbs-bar"><i style="width:0"></i></div></div>
+      <div class="macro"><div class="k">Fat</div><div class="v num" id="t-fat">0 g</div><div class="bar" id="t-fat-bar"><i style="width:0"></i></div></div>
+    </div>
+    <div class="note" id="t-note" hidden></div>
+  </section>
+  <section class="timeline" id="timeline" aria-label="Food and symptoms for this day"></section>
+</main>
+
+<!-- ===== History ===== -->
+<main class="wrap" id="view-history" hidden>
+  <div class="daylist" id="daylist"></div>
+</main>
+
+<!-- ===== Report ===== -->
+<main class="wrap" id="view-report" hidden>
+  <section class="card stack">
+    <h2>Report for your doctor</h2>
+    <p class="hint" style="margin:0">A PDF with your symptom episodes, what you ate in the hours before each one, ingredient patterns, and the full food log.</p>
+    <div class="row">
+      <div class="field"><label for="r-from">From</label><input class="input" type="date" id="r-from"></div>
+      <div class="field"><label for="r-to">To</label><input class="input" type="date" id="r-to"></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="r-share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 002 2h10a2 2 0 002-2v-5"/></svg>Share PDF</button>
+      <button class="btn" id="r-download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>Download</button>
+    </div>
+  </section>
+  <section class="card stack" id="r-preview"></section>
+</main>
+
+<!-- ===== Settings ===== -->
+<main class="wrap" id="view-settings" hidden>
+  <section class="card form">
+    <h2>Report details</h2>
+    <div class="field"><label for="s-name">Your name (printed on the report)</label><input class="input" id="s-name" autocomplete="name"></div>
+  </section>
+  <section class="card form">
+    <h2>Daily targets</h2>
+    <div class="row">
+      <div class="field"><label for="s-kcal">Calories (kcal)</label><input class="input num" id="s-kcal" type="number" inputmode="numeric" min="0"></div>
+      <div class="field"><label for="s-protein">Protein (g)</label><input class="input num" id="s-protein" type="number" inputmode="numeric" min="0"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="s-carbs">Carbs (g)</label><input class="input num" id="s-carbs" type="number" inputmode="numeric" min="0"></div>
+      <div class="field"><label for="s-fat">Fat (g)</label><input class="input num" id="s-fat" type="number" inputmode="numeric" min="0"></div>
+    </div>
+  </section>
+  <section class="card form">
+    <h2>Symptom pattern settings</h2>
+    <div class="row">
+      <div class="field"><label for="s-window">Look back (hours)</label><input class="input num" id="s-window" type="number" inputmode="numeric" min="1" max="72"></div>
+      <div class="field"><label for="s-minsev">Episode from severity</label><input class="input num" id="s-minsev" type="number" inputmode="numeric" min="1" max="10"></div>
+    </div>
+    <p class="hint" style="margin:0">A symptom at or above this severity counts as an episode. Foods eaten within the look-back window before it are linked to it in the report.</p>
+  </section>
+  <section class="card form">
+    <h2>Your data</h2>
+    <p class="hint" style="margin:0" id="data-count"></p>
+    <p class="hint" style="margin:0">Everything is stored on this phone only. Back up now and then so a cleared browser doesn't wipe your log.</p>
+    <div class="row">
+      <button class="btn" id="backup">Back up</button>
+      <label class="btn" for="restore-file">Restore</label>
+    </div>
+    <input type="file" id="restore-file" accept="application/json,.json" hidden>
+    <button class="btn danger" id="wipe">Delete all data</button>
+  </section>
+  <section class="card form" id="install-card">
+    <h2>Install on your phone</h2>
+    <p class="hint" style="margin:0"><strong>iPhone:</strong> open in Safari, tap Share, then Add to Home Screen.<br><strong>Android:</strong> open in Chrome, tap the menu, then Install app or Add to Home screen.</p>
+    <p class="hint" style="margin:0">Installing keeps your data safer, as phones can clear storage for websites you don't open often.</p>
+  </section>
+  <p class="hint" style="text-align:center">Product data from <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener" style="color:var(--accent)">Open Food Facts</a>, a community database. Check labels where it matters.</p>
+</main>
+
+<!-- ===== Action bar ===== -->
+<div class="actions" id="actions">
+  <button class="btn primary" id="add-food"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add food</button>
+  <button class="btn symp" id="add-symptom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>Log symptom</button>
+</div>
+
+<!-- ===== Tabs ===== -->
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap">
+    <button data-view="day" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Day</button>
+    <button data-view="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>History</button>
+    <button data-view="report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>Report</button>
+    <button data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Settings</button>
+  </div>
+</nav>
+
+<!-- ===== Food sheet ===== -->
+<div class="sheet-bg" id="food-bg" hidden></div>
+<section class="sheet" id="food-sheet" role="dialog" aria-modal="true" aria-labelledby="food-title" hidden>
+  <div class="sheet-head">
+    <button class="iconbtn" id="food-back" aria-label="Back" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <h2 id="food-title">Add food</h2>
+    <button class="iconbtn" id="food-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+
+  <!-- Step 1: find -->
+  <div class="sheet-body" id="finder">
+    <div class="finder-btns">
+      <button class="btn primary" id="open-scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2M7 8v8M10 8v8M13 8v8M16 8v8"/></svg>Scan barcode</button>
+      <button class="btn" id="manual">Enter manually</button>
+    </div>
+    <div class="field">
+      <label for="q">Search your foods or the product database</label>
+      <input class="input" id="q" type="search" placeholder="e.g. Weet-Bix, flat white, chicken curry" autocomplete="off" enterkeyhint="search">
+    </div>
+    <div class="results" id="my-results"></div>
+    <button class="btn block" id="online-search" hidden>Search Open Food Facts</button>
+    <div class="results" id="online-results"></div>
+  </div>
+
+  <!-- Step 2: form -->
+  <form class="sheet-body form" id="food-form" hidden novalidate>
+    <div class="prod-head" id="prod-head" hidden>
+      <img id="prod-img" alt="">
+      <div class="meta" id="prod-meta"></div>
+    </div>
+    <div class="msg" id="food-msg" hidden></div>
+    <div class="field"><label for="f-name">Food or drink</label><input class="input" id="f-name" required autocomplete="off"></div>
+    <div class="row">
+      <div class="field"><label for="f-brand">Brand (optional)</label><input class="input" id="f-brand" autocomplete="off"></div>
+      <div class="field"><label for="f-meal">Meal</label>
+        <select class="input" id="f-meal"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option><option>Drink</option></select>
+      </div>
+    </div>
+    <div class="field"><label for="f-when">When</label><input class="input" id="f-when" type="datetime-local"></div>
+    <div class="row">
+      <div class="field"><label for="f-amount">Amount eaten</label><input class="input num" id="f-amount" type="number" inputmode="decimal" min="0" step="any"></div>
+      <div class="field"><label for="f-unit">Unit</label>
+        <select class="input" id="f-unit"><option value="g">grams (g)</option><option value="ml">millilitres (ml)</option><option value="serving">servings</option></select>
+      </div>
+    </div>
+    <div class="field" id="serving-field" hidden><label for="f-serving">One serving is (g or ml)</label><input class="input num" id="f-serving" type="number" inputmode="decimal" min="0" step="any"></div>
+    <div class="field">
+      <label for="f-ingredients">Ingredients</label>
+      <textarea class="input" id="f-ingredients" placeholder="Comma separated, e.g. wheat, milk, garlic, onion"></textarea>
+      <div class="chips" id="f-allergens"></div>
+    </div>
+    <div class="field">
+      <span class="lbl">Nutrition values are</span>
+      <div class="seg" role="group" aria-label="Nutrition basis">
+        <button type="button" data-mode="per100" aria-pressed="true">Per 100 g / ml</button>
+        <button type="button" data-mode="total" aria-pressed="false">Total for this amount</button>
+      </div>
+    </div>
+    <div class="row3">
+      <div class="field"><label for="f-kcal">kcal</label><input class="input num" id="f-kcal" type="number" inputmode="decimal" min="0" step="any"></div>
+      <div class="field"><label for="f-protein">Protein g</label><input class="input num" id="f-protein" type="number" inputmode="decimal" min="0" step="any"></div>
+      <div class="field"><label for="f-carbs">Carbs g</label><input class="input num" id="f-carbs" type="number" inputmode="decimal" min="0" step="any"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label for="f-fat">Fat g</label><input class="input num" id="f-fat" type="number" inputmode="decimal" min="0" step="any"></div>
+      <div class="field"><label for="f-fiber">Fibre g</label><input class="input num" id="f-fiber" type="number" inputmode="decimal" min="0" step="any"></div>
+      <div class="field"><label for="f-sugar">Sugar g</label><input class="input num" id="f-sugar" type="number" inputmode="decimal" min="0" step="any"></div>
+    </div>
+    <div class="computed num" id="f-computed"></div>
+    <div class="field"><label for="f-notes">Notes (optional)</label><input class="input" id="f-notes" placeholder="e.g. ate quickly, takeaway, felt full" autocomplete="off"></div>
+    <label class="check"><input type="checkbox" id="f-remember" checked> Save to my foods for next time</label>
+    <button class="btn primary block" type="submit" id="f-save">Save</button>
+    <button class="btn danger block" type="button" id="f-delete" hidden>Delete entry</button>
+  </form>
+</section>
+
+<!-- ===== Symptom sheet ===== -->
+<div class="sheet-bg" id="symp-bg" hidden></div>
+<section class="sheet" id="symp-sheet" role="dialog" aria-modal="true" aria-labelledby="symp-title" hidden>
+  <div class="sheet-head">
+    <h2 id="symp-title">Log symptom</h2>
+    <button class="iconbtn" id="symp-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <form class="sheet-body form" id="symp-form" novalidate>
+    <div class="field"><label for="y-type">Symptom</label>
+      <select class="input" id="y-type">
+        <option>Abdominal pain</option><option>Cramping</option><option>Bloating</option><option>Gas</option>
+        <option>Reflux / heartburn</option><option>Nausea</option><option>Vomiting</option>
+        <option>Diarrhoea</option><option>Constipation</option><option>Urgency</option><option>Bowel movement</option>
+        <option>Fatigue</option><option>Headache</option><option>Other</option>
+      </select>
+    </div>
+    <div class="field"><label for="y-when">When it started</label><input class="input" id="y-when" type="datetime-local"></div>
+    <div class="field">
+      <label for="y-sev">Severity</label>
+      <div class="sevrow"><input type="range" id="y-sev" min="0" max="10" step="1" value="4"><output id="y-sev-out" class="sev s1 num">4/10</output></div>
+      <span class="hint">0 none, 1 to 3 mild, 4 to 6 moderate, 7 to 10 severe</span>
+    </div>
+    <div class="field" id="bristol-field" hidden>
+      <label for="y-bristol">Stool type (Bristol scale)</label>
+      <select class="input" id="y-bristol">
+        <option value="">Not recorded</option>
+        <option value="1">Type 1: separate hard lumps</option>
+        <option value="2">Type 2: lumpy, sausage shaped</option>
+        <option value="3">Type 3: sausage with cracks</option>
+        <option value="4">Type 4: smooth, soft sausage</option>
+        <option value="5">Type 5: soft blobs, clear edges</option>
+        <option value="6">Type 6: mushy, ragged edges</option>
+        <option value="7">Type 7: entirely liquid</option>
+      </select>
+    </div>
+    <div class="field"><label for="y-duration">How long it lasted (minutes, optional)</label><input class="input num" id="y-duration" type="number" inputmode="numeric" min="0"></div>
+    <div class="field"><label for="y-notes">Notes (optional)</label><textarea class="input" id="y-notes" placeholder="Where it hurt, what helped, anything unusual"></textarea></div>
+    <button class="btn primary block" type="submit">Save</button>
+    <button class="btn danger block" type="button" id="y-delete" hidden>Delete entry</button>
+  </form>
+</section>
+
+<!-- ===== Scanner ===== -->
+<section class="scanner" id="scanner" hidden aria-label="Barcode scanner">
+  <div class="scanner-head">
+    <h2>Point at the barcode</h2>
+    <button class="iconbtn" id="scan-close" aria-label="Close scanner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div id="reader"></div>
+  <div class="scanner-foot">
+    <div id="scan-msg">Starting camera…</div>
+    <div class="row">
+      <input class="input num" id="scan-code" inputmode="numeric" placeholder="Or type the number" autocomplete="off">
+      <button class="btn primary" id="scan-go">Look up</button>
+    </div>
+    <label class="btn" for="scan-photo">Use a photo instead</label>
+    <input type="file" id="scan-photo" accept="image/*" capture="environment" hidden>
+    <div id="reader-file" hidden></div>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="lib/html5-qrcode.min.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/jspdf.plugin.autotable.min.js"></script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+const r0 = n => Math.round(n);
+const r1 = n => Math.round(n * 10) / 10;
+
+/* ---------- Storage ---------- */
+const STORE = 'foodtracker.v1';
+const NUT = ['kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar'];
+function defaults() {
+  return { entries: [], symptoms: [], foods: {}, settings: { name: '', kcal: 2500, protein: 150, carbs: 250, fat: 80, windowH: 8, minSev: 3 } };
+}
+function load() {
+  const d = defaults();
+  try {
+    const raw = localStorage.getItem(STORE);
+    if (raw) {
+      const s = JSON.parse(raw);
+      return { entries: s.entries || [], symptoms: s.symptoms || [], foods: s.foods || {}, settings: Object.assign(d.settings, s.settings || {}) };
+    }
+  } catch (e) {}
+  return d;
+}
+let S = load();
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(S)); }
+  catch (e) { toast('Could not save. Phone storage may be full or blocked.'); }
+}
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+/* ---------- Dates ---------- */
+const pad = n => String(n).padStart(2, '0');
+function localISO(d = new Date()) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+const todayKey = () => localISO().slice(0, 10);
+const tms = ts => new Date(ts).getTime();
+function keyToDate(k) { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); }
+function shiftKey(k, n) { const d = keyToDate(k); d.setDate(d.getDate() + n); return localISO(d).slice(0, 10); }
+function fmtDay(k, opts = { weekday: 'short', day: 'numeric', month: 'short' }) { return keyToDate(k).toLocaleDateString('en-NZ', opts); }
+const fmtLong = k => fmtDay(k, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const timeOf = ts => ts.slice(11, 16);
+const byTs = (a, b) => a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0;
+
+/* ---------- Nutrition ---------- */
+function gramsOf(e) {
+  if (e.unit === 'serving') return e.servingG ? e.amount * e.servingG : null;
+  return e.amount;
+}
+function totalsOf(e) {
+  if (e.nutMode === 'total') return e.nut || {};
+  const g = gramsOf(e), o = {};
+  if (!e.per100 || g == null) return o;
+  for (const k of NUT) if (e.per100[k] != null) o[k] = e.per100[k] * g / 100;
+  return o;
+}
+function hasNutrition(e) { return totalsOf(e).kcal != null; }
+function fmtAmount(e) {
+  if (e.unit === 'serving') {
+    const s = `${e.amount} serving${e.amount == 1 ? '' : 's'}`;
+    return e.servingG ? `${s} (${r0(e.amount * e.servingG)} g)` : s;
+  }
+  return `${e.amount} ${e.unit}`;
+}
+function sumDay(list) {
+  const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  let missing = 0;
+  for (const e of list) {
+    const n = totalsOf(e);
+    if (n.kcal == null) missing++;
+    for (const k in t) t[k] += n[k] || 0;
+  }
+  return { t, missing };
+}
+const sevClass = s => s >= 7 ? 's2' : s >= 3 ? 's1' : 's0';
+const BOWEL = ['Diarrhoea', 'Constipation', 'Bowel movement', 'Urgency'];
+
+/* ---------- Ingredients ---------- */
+// Splits a label ingredient list into individual items. Bracketed sub-ingredients and percentages are dropped,
+// "may contain" statements are removed, and "emulsifier: lecithin" keeps the part after the colon.
+function ingredientList(text) {
+  if (!text) return [];
+  let t = String(text).toLowerCase()
+    .replace(/may contain[^.;]*/g, ' ')
+    .replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')
+    .replace(/\d+([.,]\d+)?\s*%/g, ' ');
+  const out = t.split(/[,;]|\.\s|\.$/).map(s => {
+    if (s.includes(':')) s = s.split(':').pop();
+    return s.replace(/[^a-zÀ-ɏ\s'-]/g, ' ').replace(/\s+/g, ' ').trim();
+  }).filter(s => s.length > 1 && s.length < 45 && !/^(ingredients?|contains?|and)$/.test(s));
+  return [...new Set(out)];
+}
+
+/* ---------- UI helpers ---------- */
+let toastTimer;
+function toast(msg) {
+  const el = $('#toast'); el.textContent = msg; el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.hidden = true, 2800);
+}
+function armButton(btn, label, action) {
+  // Two-tap confirm for destructive actions.
+  if (btn.classList.contains('armed')) { btn.classList.remove('armed'); btn.textContent = btn.dataset.label; action(); return; }
+  btn.dataset.label = btn.textContent; btn.classList.add('armed'); btn.textContent = label;
+  setTimeout(() => { if (btn.classList.contains('armed')) { btn.classList.remove('armed'); btn.textContent = btn.dataset.label; } }, 4000);
+}
+function setBar(id, val, target) {
+  const el = $(id); const pct = target ? Math.min(100, val / target * 100) : 0;
+  el.firstElementChild.style.width = pct + '%';
+  el.classList.toggle('over', target && val > target * 1.05);
+}
+
+/* ---------- Views ---------- */
+let view = 'day';
+let dayKey = todayKey();
+function setView(v) {
+  view = v;
+  for (const n of ['day', 'history', 'report', 'settings']) $('#view-' + n).hidden = n !== v;
+  $$('.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.view === v ? 'page' : 'false'));
+  $('#hdr-day').hidden = v !== 'day';
+  $('#hdr-title').hidden = v === 'day';
+  $('#hdr-title').textContent = { history: 'History', report: 'Doctor report', settings: 'Settings' }[v] || '';
+  $('#actions').hidden = !(v === 'day' || v === 'history');
+  render();
+  window.scrollTo(0, 0);
+}
+function render() {
+  if (view === 'day') renderDay();
+  if (view === 'history') renderHistory();
+  if (view === 'report') renderReport();
+  if (view === 'settings') renderSettings();
+}
+
+function renderDay() {
+  const tk = todayKey();
+  $('#day-title').textContent = dayKey === tk ? 'Today' : dayKey === shiftKey(tk, -1) ? 'Yesterday' : fmtDay(dayKey, { weekday: 'long' });
+  $('#day-sub').textContent = fmtDay(dayKey, { day: 'numeric', month: 'long', year: 'numeric' });
+  $('#day-next').disabled = dayKey >= tk;
+  $('#day-next').style.opacity = dayKey >= tk ? .35 : 1;
+
+  const ents = S.entries.filter(e => e.ts.startsWith(dayKey)).sort(byTs);
+  const syms = S.symptoms.filter(s => s.ts.startsWith(dayKey)).sort(byTs);
+  const { t, missing } = sumDay(ents);
+  const st = S.settings;
+  $('#t-kcal').textContent = r0(t.kcal).toLocaleString('en-NZ');
+  const left = st.kcal - t.kcal;
+  $('#t-kcal-left').textContent = st.kcal ? (left >= 0 ? `${r0(left).toLocaleString('en-NZ')} left of ${st.kcal.toLocaleString('en-NZ')}` : `${r0(-left).toLocaleString('en-NZ')} over ${st.kcal.toLocaleString('en-NZ')}`) : '';
+  setBar('#t-kcal-bar', t.kcal, st.kcal);
+  for (const k of ['protein', 'carbs', 'fat']) {
+    $('#t-' + k).textContent = `${r0(t[k])}${st[k] ? ' / ' + st[k] : ''} g`;
+    setBar(`#t-${k}-bar`, t[k], st[k]);
+  }
+  $('#t-note').hidden = !missing;
+  $('#t-note').textContent = `${missing} item${missing === 1 ? '' : 's'} without nutrition data, not counted in totals.`;
+
+  const items = [...ents.map(e => ({ k: 'f', ...e })), ...syms.map(s => ({ k: 's', ...s }))].sort(byTs);
+  const tl = $('#timeline');
+  if (!items.length) {
+    tl.innerHTML = `<div class="empty"><strong>Nothing logged ${dayKey === tk ? 'yet today' : 'for this day'}</strong>Tap Add food to scan a barcode or search, and Log symptom when something flares up.</div>`;
+    return;
+  }
+  tl.innerHTML = items.map(it => {
+    if (it.k === 'f') {
+      const n = totalsOf(it);
+      const ing = it.ingredients ? `<div class="ing">${esc(it.ingredients)}</div>` : '';
+      return `<button class="item" data-food="${it.id}">
+        <div class="t num">${timeOf(it.ts)}</div>
+        <div class="main"><div class="name">${esc(it.name)}</div>
+          <div class="sub">${esc(it.meal)} · ${esc(fmtAmount(it))}${it.brand ? ' · ' + esc(it.brand) : ''}</div>${ing}</div>
+        <div class="right num">${n.kcal != null ? r0(n.kcal) + '<small>kcal</small>' : '<small>no data</small>'}</div>
+      </button>`;
+    }
+    return `<button class="item symptom" data-symp="${it.id}">
+      <div class="t num">${timeOf(it.ts)}</div>
+      <div class="main"><div class="name">${esc(it.type)}</div>
+        <div class="sub">${it.bristol ? 'Bristol type ' + it.bristol : ''}${it.bristol && it.duration ? ' · ' : ''}${it.duration ? it.duration + ' min' : ''}</div>
+        ${it.notes ? `<div class="ing">${esc(it.notes)}</div>` : ''}</div>
+      <div class="right"><span class="sev ${sevClass(it.severity)} num">${it.severity}/10</span></div>
+    </button>`;
+  }).join('');
+}
+
+function renderHistory() {
+  const keys = new Set([...S.entries.map(e => e.ts.slice(0, 10)), ...S.symptoms.map(s => s.ts.slice(0, 10))]);
+  const list = [...keys].sort().reverse();
+  const el = $('#daylist');
+  if (!list.length) { el.innerHTML = `<div class="empty"><strong>No days logged yet</strong>Each day you log food or symptoms shows up here.</div>`; return; }
+  el.innerHTML = list.map(k => {
+    const ents = S.entries.filter(e => e.ts.startsWith(k));
+    const syms = S.symptoms.filter(s => s.ts.startsWith(k));
+    const { t } = sumDay(ents);
+    const max = syms.length ? Math.max(...syms.map(s => s.severity)) : null;
+    return `<button class="dayrow" data-day="${k}">
+      <div><div class="d">${esc(fmtDay(k, { weekday: 'long', day: 'numeric', month: 'short' }))}</div>
+        <div class="m num">${ents.length} food${ents.length === 1 ? '' : 's'} · ${syms.length} symptom${syms.length === 1 ? '' : 's'}</div></div>
+      <div class="r num">${r0(t.kcal).toLocaleString('en-NZ')} kcal${max != null ? `<br><span class="sev ${sevClass(max)}">max ${max}</span>` : ''}</div>
+    </button>`;
+  }).join('');
+}
+
+function renderSettings() {
+  const st = S.settings;
+  $('#s-name').value = st.name; $('#s-kcal').value = st.kcal; $('#s-protein').value = st.protein;
+  $('#s-carbs').value = st.carbs; $('#s-fat').value = st.fat; $('#s-window').value = st.windowH; $('#s-minsev').value = st.minSev;
+  $('#data-count').textContent = `${S.entries.length} food entries, ${S.symptoms.length} symptoms, ${Object.keys(S.foods).length} saved foods.`;
+}
+function bindSetting(id, key, numeric) {
+  $(id).addEventListener('change', e => {
+    let v = e.target.value;
+    if (numeric) { v = Number(v); if (!isFinite(v) || v < 0) { renderSettings(); return; } }
+    S.settings[key] = v; save();
+  });
+}
+bindSetting('#s-name', 'name'); bindSetting('#s-kcal', 'kcal', 1); bindSetting('#s-protein', 'protein', 1);
+bindSetting('#s-carbs', 'carbs', 1); bindSetting('#s-fat', 'fat', 1); bindSetting('#s-window', 'windowH', 1); bindSetting('#s-minsev', 'minSev', 1);
+
+/* ---------- Food sheet ---------- */
+let editingFood = null;   // id of entry being edited
+let current = null;       // product template behind the form
+let nutMode = 'per100';
+
+function openSheet(id) { $('#' + id + '-sheet').hidden = false; $('#' + id + '-bg').hidden = false; document.body.style.overflow = 'hidden'; }
+function closeSheet(id) { $('#' + id + '-sheet').hidden = true; $('#' + id + '-bg').hidden = true; document.body.style.overflow = ''; }
+
+function defaultWhen() {
+  const now = localISO();
+  return dayKey === todayKey() ? now : dayKey + 'T' + now.slice(11);
+}
+function guessMeal(ts) {
+  const h = Number(ts.slice(11, 13));
+  return h < 10.5 ? 'Breakfast' : h < 14.5 ? 'Lunch' : h >= 17 && h < 21 ? 'Dinner' : 'Snack';
+}
+
+function openFoodFinder() {
+  editingFood = null; current = null;
+  $('#food-title').textContent = 'Add food';
+  $('#finder').hidden = false; $('#food-form').hidden = true; $('#food-back').hidden = true;
+  $('#q').value = ''; $('#online-results').innerHTML = '';
+  renderMyFoods('');
+  openSheet('food');
+}
+function renderMyFoods(q) {
+  q = q.trim().toLowerCase();
+  const foods = Object.entries(S.foods)
+    .filter(([, f]) => !q || (f.name + ' ' + (f.brand || '')).toLowerCase().includes(q))
+    .sort((a, b) => (b[1].lastUsed || '').localeCompare(a[1].lastUsed || ''))
+    .slice(0, q ? 20 : 8);
+  const el = $('#my-results');
+  el.innerHTML = foods.length ? `<div class="section-label">${q ? 'My foods' : 'Recent foods'}</div>` + foods.map(([k, f]) =>
+    `<button class="result" data-myfood="${esc(k)}"><div><div class="n">${esc(f.name)}</div><div class="b">${esc([f.brand, f.lastAmount ? fmtAmount({ amount: f.lastAmount, unit: f.lastUnit, servingG: f.servingG }) : ''].filter(Boolean).join(' · '))}</div></div><span class="pill">Add</span></button>`
+  ).join('') : '';
+  $('#online-search').hidden = !q;
+  $('#online-search').textContent = q ? `Search Open Food Facts for "${q}"` : '';
+}
+
+function showForm(tpl, opts = {}) {
+  current = tpl || {};
+  $('#finder').hidden = true; $('#food-form').hidden = false;
+  $('#food-back').hidden = !!editingFood;
+  $('#food-title').textContent = editingFood ? 'Edit food' : 'Add food';
+  const e = opts.entry;
+  const when = e ? e.ts : defaultWhen();
+  $('#f-name').value = current.name || '';
+  $('#f-brand').value = current.brand || '';
+  $('#f-when').value = when;
+  $('#f-meal').value = e ? e.meal : guessMeal(when);
+  let unit = e ? e.unit : current.lastUnit || (current.servingG ? 'serving' : 'g');
+  let amount = e ? e.amount : current.lastAmount || (unit === 'serving' ? 1 : '');
+  $('#f-unit').value = unit; $('#f-amount').value = amount;
+  $('#f-serving').value = (e ? e.servingG : current.servingG) || '';
+  $('#f-ingredients').value = current.ingredients || '';
+  $('#f-allergens').innerHTML = (current.allergens || []).map(a => `<span class="chip">Contains ${esc(a)}</span>`).join('');
+  setNutMode(current.nutMode || (current.per100 ? 'per100' : 'per100'));
+  const vals = nutMode === 'total' ? (current.nut || {}) : (current.per100 || {});
+  for (const k of NUT) $('#f-' + k).value = vals[k] != null ? r1(vals[k]) : '';
+  $('#f-notes').value = e ? e.notes || '' : '';
+  $('#f-remember').checked = !e;
+  $('#f-delete').hidden = !e;
+  $('#f-delete').classList.remove('armed'); $('#f-delete').textContent = 'Delete entry';
+
+  const head = $('#prod-head');
+  if (current.barcode || current.image) {
+    head.hidden = false;
+    $('#prod-img').hidden = !current.image;
+    if (current.image) $('#prod-img').src = current.image;
+    $('#prod-meta').innerHTML = [current.barcode ? 'Barcode ' + esc(current.barcode) : '', current.source ? 'Source: ' + esc(current.source) : '', current.servingLabel ? 'Serving on pack: ' + esc(current.servingLabel) : ''].filter(Boolean).join('<br>');
+  } else head.hidden = true;
+
+  const m = $('#food-msg');
+  m.hidden = !opts.msg; m.className = 'msg' + (opts.msgType ? ' ' + opts.msgType : ''); m.textContent = opts.msg || '';
+  updateServingField(); updateComputed();
+  $('#food-sheet').scrollTop = 0;
+}
+function setNutMode(m) {
+  nutMode = m;
+  $$('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m ? 'true' : 'false'));
+}
+function updateServingField() { $('#serving-field').hidden = $('#f-unit').value !== 'serving'; }
+function readNum(id) { const v = $(id).value.trim(); if (v === '') return null; const n = Number(v); return isFinite(n) ? n : null; }
+function formEntry() {
+  const vals = {}; for (const k of NUT) { const v = readNum('#f-' + k); if (v != null) vals[k] = v; }
+  return {
+    name: $('#f-name').value.trim(), brand: $('#f-brand').value.trim(), meal: $('#f-meal').value, ts: $('#f-when').value,
+    amount: readNum('#f-amount'), unit: $('#f-unit').value, servingG: readNum('#f-serving'),
+    ingredients: $('#f-ingredients').value.trim(), allergens: current.allergens || [],
+    nutMode, per100: nutMode === 'per100' ? vals : null, nut: nutMode === 'total' ? vals : null,
+    barcode: current.barcode || '', source: current.source || 'Entered manually', notes: $('#f-notes').value.trim()
+  };
+}
+function updateComputed() {
+  const e = formEntry(); const el = $('#f-computed');
+  if (e.amount == null) { el.textContent = 'Enter the amount to see totals.'; return; }
+  if (e.nutMode === 'per100' && e.unit === 'serving' && !e.servingG) { el.textContent = 'Add the serving size in grams to work out totals from per 100 g values.'; return; }
+  const n = totalsOf(e);
+  if (n.kcal == null && n.protein == null) { el.textContent = 'No nutrition values entered. Ingredients will still be logged.'; return; }
+  el.innerHTML = `This entry: <strong>${n.kcal != null ? r0(n.kcal) : '?'} kcal</strong> · P ${n.protein != null ? r1(n.protein) : '?'} g · C ${n.carbs != null ? r1(n.carbs) : '?'} g · F ${n.fat != null ? r1(n.fat) : '?'} g`;
+}
+
+function foodKey(f) { return f.barcode ? 'bc:' + f.barcode : 'n:' + f.name.toLowerCase() + '|' + (f.brand || '').toLowerCase(); }
+
+$('#food-form').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const e = formEntry();
+  if (!e.name) { toast('Add the name of the food.'); $('#f-name').focus(); return; }
+  if (e.amount == null || e.amount <= 0) { toast('Add how much you had.'); $('#f-amount').focus(); return; }
+  if (!e.ts) { toast('Add the date and time.'); return; }
+  if (editingFood) {
+    const i = S.entries.findIndex(x => x.id === editingFood);
+    if (i >= 0) S.entries[i] = { ...S.entries[i], ...e };
+  } else {
+    S.entries.push({ id: uid(), ...e });
+  }
+  if ($('#f-remember').checked || S.foods[foodKey(e)]) {
+    S.foods[foodKey(e)] = {
+      name: e.name, brand: e.brand, barcode: e.barcode, ingredients: e.ingredients, allergens: e.allergens,
+      nutMode: e.nutMode, per100: e.per100, nut: e.nut, servingG: e.servingG, servingLabel: current.servingLabel || '',
+      image: current.image || '', source: e.source, lastAmount: e.amount, lastUnit: e.unit, lastUsed: localISO()
+    };
+  }
+  save(); closeSheet('food');
+  dayKey = e.ts.slice(0, 10);
+  if (view !== 'day') setView('day'); else render();
+  toast(editingFood ? 'Entry updated' : 'Food logged');
+});
+$('#f-delete').addEventListener('click', ev => armButton(ev.currentTarget, 'Tap again to delete', () => {
+  S.entries = S.entries.filter(x => x.id !== editingFood); save(); closeSheet('food'); render(); toast('Entry deleted');
+}));
+['#f-amount', '#f-serving', ...NUT.map(k => '#f-' + k)].forEach(id => $(id).addEventListener('input', updateComputed));
+$('#f-unit').addEventListener('change', () => { updateServingField(); updateComputed(); });
+$$('.seg button').forEach(b => b.addEventListener('click', () => { setNutMode(b.dataset.mode); updateComputed(); }));
+$('#f-when').addEventListener('change', () => { if (!editingFood) $('#f-meal').value = guessMeal($('#f-when').value); });
+
+$('#q').addEventListener('input', e => { renderMyFoods(e.target.value); $('#online-results').innerHTML = ''; });
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if ($('#q').value.trim()) runOnlineSearch(); } });
+$('#online-search').addEventListener('click', runOnlineSearch);
+$('#my-results').addEventListener('click', e => {
+  const b = e.target.closest('[data-myfood]'); if (!b) return;
+  showForm({ ...S.foods[b.dataset.myfood] });
+});
+$('#online-results').addEventListener('click', e => {
+  const b = e.target.closest('[data-code]');
+  if (b) { lookupBarcode(b.dataset.code); return; }
+  if (e.target.closest('[data-newfood]')) showForm({ name: $('#q').value.trim() });
+});
+$('#manual').addEventListener('click', () => showForm({ name: $('#q').value.trim() }));
+$('#food-back').addEventListener('click', () => { $('#finder').hidden = false; $('#food-form').hidden = true; $('#food-back').hidden = true; });
+$('#food-close').addEventListener('click', () => closeSheet('food'));
+$('#food-bg').addEventListener('click', () => closeSheet('food'));
+
+/* ---------- Open Food Facts ---------- */
+const OFF_FIELDS = 'code,product_name,product_name_en,brands,quantity,serving_size,serving_quantity,ingredients_text,ingredients_text_en,allergens_tags,nutriments,image_front_small_url';
+async function fetchJSON(url, ms = 12000) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms);
+  try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+function fromOFF(p) {
+  const n = p.nutriments || {};
+  const num = v => (v === undefined || v === null || v === '' || !isFinite(Number(v))) ? null : Number(v);
+  let kcal = num(n['energy-kcal_100g']);
+  if (kcal == null && num(n['energy-kj_100g']) != null) kcal = num(n['energy-kj_100g']) / 4.184;
+  const per100 = { kcal, protein: num(n.proteins_100g), carbs: num(n.carbohydrates_100g), fat: num(n.fat_100g), fiber: num(n.fiber_100g), sugar: num(n.sugars_100g) };
+  for (const k in per100) if (per100[k] == null) delete per100[k];
+  return {
+    name: p.product_name_en || p.product_name || 'Unnamed product',
+    brand: (p.brands || '').split(',')[0].trim(),
+    barcode: p.code,
+    ingredients: (p.ingredients_text_en || p.ingredients_text || '').trim(),
+    allergens: (p.allergens_tags || []).map(t => t.replace(/^[a-z]{2}:/, '').replace(/-/g, ' ')),
+    servingG: num(p.serving_quantity), servingLabel: p.serving_size || '',
+    per100: Object.keys(per100).length ? per100 : null, nutMode: 'per100',
+    image: p.image_front_small_url || '', source: 'Open Food Facts'
+  };
+}
+async function lookupBarcode(code) {
+  code = String(code).replace(/\D/g, '');
+  if (!code) { toast('That barcode has no digits in it.'); return; }
+  if ($('#food-sheet').hidden) { editingFood = null; openSheet('food'); }
+  const saved = S.foods['bc:' + code];
+  if (saved) { showForm({ ...saved }, { msg: 'From your saved foods.' }); return; }
+  showForm({ barcode: code }, { msg: `Looking up ${code}…` });
+  $('#f-save').disabled = true;
+  try {
+    const d = await fetchJSON(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${OFF_FIELDS}`);
+    if (d.status === 1 && d.product) {
+      const p = fromOFF(d.product);
+      const gaps = [];
+      if (!p.ingredients) gaps.push('ingredients');
+      if (!p.per100 || p.per100.kcal == null) gaps.push('nutrition');
+      showForm(p, gaps.length
+        ? { msg: `Found it, but the database has no ${gaps.join(' or ')} for this product. Type it from the pack and it'll be remembered for this barcode.`, msgType: 'warn' }
+        : { msg: 'Found on Open Food Facts. Check it matches the pack.' });
+    } else {
+      showForm({ barcode: code }, { msg: `Barcode ${code} isn't in Open Food Facts. Enter the details from the pack once and it'll be remembered.`, msgType: 'warn' });
+    }
+  } catch (err) {
+    showForm({ barcode: code }, { msg: `Couldn't reach the product database (${err.name === 'AbortError' ? 'timed out' : 'no connection'}). You can still enter it manually.`, msgType: 'err' });
+  } finally { $('#f-save').disabled = false; }
+}
+async function runOnlineSearch() {
+  const q = $('#q').value.trim(); if (!q) return;
+  const el = $('#online-results');
+  el.innerHTML = '<div class="hint">Searching…</div>';
+  let hits = null;
+  try {
+    const d = await fetchJSON(`https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=15&fields=code,product_name,brands`);
+    hits = (d.hits || []).map(h => ({ code: h.code, name: h.product_name, brand: Array.isArray(h.brands) ? h.brands[0] : h.brands }));
+  } catch (e) {
+    try {
+      const d = await fetchJSON(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=15&fields=code,product_name,brands`);
+      hits = (d.products || []).map(p => ({ code: p.code, name: p.product_name, brand: (p.brands || '').split(',')[0] }));
+    } catch (e2) { hits = null; }
+  }
+  const newBtn = `<button class="result" data-newfood="1"><div><div class="n">Add "${esc(q)}" as my own food</div><div class="b">For home cooking, takeaways and fresh food</div></div><span class="pill">New</span></button>`;
+  if (hits === null) { el.innerHTML = `<div class="msg err">Product search isn't responding right now. Scanning the barcode usually still works.</div>` + newBtn; return; }
+  hits = hits.filter(h => h.code && h.name);
+  el.innerHTML = `<div class="section-label">Open Food Facts</div>` + (hits.length ? hits.map(h =>
+    `<button class="result" data-code="${esc(h.code)}"><div><div class="n">${esc(h.name)}</div><div class="b">${esc(h.brand || '')}</div></div><span class="pill">View</span></button>`).join('') : '<div class="hint">No products found.</div>') + newBtn;
+}
+
+/* ---------- Scanner ---------- */
+let qr = null, scanLock = false;
+async function openScanner() {
+  $('#scanner').hidden = false; $('#scan-code').value = ''; $('#scan-msg').textContent = 'Starting camera…'; scanLock = false;
+  if (!window.Html5Qrcode) { $('#scan-msg').textContent = 'Scanner failed to load. Type the barcode number instead.'; return; }
+  const F = Html5QrcodeSupportedFormats;
+  try {
+    qr = new Html5Qrcode('reader', { formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128], experimentalFeatures: { useBarCodeDetectorIfSupported: true }, verbose: false });
+    await qr.start({ facingMode: 'environment' },
+      { fps: 12, qrbox: (w, h) => ({ width: Math.max(120, Math.min(w * 0.85, 340)), height: Math.max(80, Math.min(h * 0.35, 170)) }) },
+      code => onScanned(code), () => {});
+    $('#scan-msg').textContent = 'Hold steady with the barcode inside the box.';
+  } catch (err) {
+    $('#scan-msg').textContent = 'Camera not available. Allow camera access for this site, or type the number below.';
+  }
+}
+async function stopScanner() {
+  if (qr) { try { if (qr.isScanning) await qr.stop(); qr.clear(); } catch (e) {} qr = null; }
+  $('#scanner').hidden = true;
+}
+async function onScanned(code) {
+  if (scanLock) return; scanLock = true;
+  if (navigator.vibrate) navigator.vibrate(60);
+  await stopScanner(); lookupBarcode(code);
+}
+$('#open-scan').addEventListener('click', openScanner);
+$('#scan-close').addEventListener('click', stopScanner);
+$('#scan-go').addEventListener('click', () => { const c = $('#scan-code').value.trim(); if (c) onScanned(c); });
+$('#scan-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#scan-go').click(); });
+$('#scan-photo').addEventListener('change', async e => {
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  $('#scan-msg').textContent = 'Reading photo…';
+  if (qr && qr.isScanning) { try { await qr.stop(); } catch (er) {} }
+  try {
+    const F = Html5QrcodeSupportedFormats;
+    const reader = new Html5Qrcode('reader-file', { formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128], verbose: false });
+    const code = await reader.scanFile(file, false);
+    reader.clear(); onScanned(code);
+  } catch (err) {
+    $('#scan-msg').textContent = "Couldn't find a barcode in that photo. Try closer and in good light, or type the number.";
+  }
+});
+
+/* ---------- Symptom sheet ---------- */
+let editingSymp = null;
+function openSymptom(s) {
+  editingSymp = s ? s.id : null;
+  $('#symp-title').textContent = s ? 'Edit symptom' : 'Log symptom';
+  $('#y-type').value = s ? s.type : 'Abdominal pain';
+  $('#y-when').value = s ? s.ts : defaultWhen();
+  $('#y-sev').value = s ? s.severity : 4;
+  $('#y-bristol').value = s && s.bristol ? s.bristol : '';
+  $('#y-duration').value = s && s.duration ? s.duration : '';
+  $('#y-notes').value = s ? s.notes || '' : '';
+  $('#y-delete').hidden = !s; $('#y-delete').classList.remove('armed'); $('#y-delete').textContent = 'Delete entry';
+  updateSev(); updateBristol(); openSheet('symp'); $('#symp-sheet').scrollTop = 0;
+}
+function updateSev() { const v = Number($('#y-sev').value); const o = $('#y-sev-out'); o.textContent = v + '/10'; o.className = 'sev num ' + sevClass(v); }
+function updateBristol() { $('#bristol-field').hidden = !BOWEL.includes($('#y-type').value); }
+$('#y-sev').addEventListener('input', updateSev);
+$('#y-type').addEventListener('change', () => {
+  updateBristol();
+  if ($('#y-type').value === 'Bowel movement' && !editingSymp) { $('#y-sev').value = 0; updateSev(); }
+});
+$('#symp-form').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const ts = $('#y-when').value; if (!ts) { toast('Add when it started.'); return; }
+  const s = {
+    type: $('#y-type').value, ts, severity: Number($('#y-sev').value),
+    bristol: BOWEL.includes($('#y-type').value) && $('#y-bristol').value ? Number($('#y-bristol').value) : null,
+    duration: readNum('#y-duration'), notes: $('#y-notes').value.trim()
+  };
+  if (editingSymp) { const i = S.symptoms.findIndex(x => x.id === editingSymp); if (i >= 0) S.symptoms[i] = { ...S.symptoms[i], ...s }; }
+  else S.symptoms.push({ id: uid(), ...s });
+  save(); closeSheet('symp'); dayKey = ts.slice(0, 10);
+  if (view !== 'day') setView('day'); else render();
+  toast(editingSymp ? 'Symptom updated' : 'Symptom logged');
+});
+$('#y-delete').addEventListener('click', ev => armButton(ev.currentTarget, 'Tap again to delete', () => {
+  S.symptoms = S.symptoms.filter(x => x.id !== editingSymp); save(); closeSheet('symp'); render(); toast('Entry deleted');
+}));
+$('#symp-close').addEventListener('click', () => closeSheet('symp'));
+$('#symp-bg').addEventListener('click', () => closeSheet('symp'));
+
+/* ---------- Analysis ---------- */
+// For every food entry: was a symptom episode (severity >= minSev) recorded within windowH hours after it?
+// Each food and ingredient then gets "times eaten" and "times followed by an episode". Timing only, not cause.
+function analyse(from, to) {
+  const st = S.settings, W = st.windowH * 3600e3;
+  const inR = ts => { const d = ts.slice(0, 10); return d >= from && d <= to; };
+  const ents = S.entries.filter(e => inR(e.ts)).sort(byTs);
+  const all = S.symptoms.filter(s => inR(s.ts)).sort(byTs);
+  const eps = all.filter(s => s.severity >= st.minSev);
+  const within = (e, s) => { const d = tms(s.ts) - tms(e.ts); return d >= 0 && d <= W; };
+  const foodStats = {}, ingStats = {};
+  let followedCount = 0;
+  const bump = (m, k, label, f) => { if (!k) return; m[k] = m[k] || { label, n: 0, f: 0 }; m[k].n++; if (f) m[k].f++; };
+  for (const e of ents) {
+    const f = eps.some(s => within(e, s));
+    if (f) followedCount++;
+    bump(foodStats, e.name.trim().toLowerCase(), e.name.trim(), f);
+    const keys = new Set(ingredientList(e.ingredients));
+    (e.allergens || []).forEach(a => keys.add('contains ' + a));
+    keys.forEach(k => bump(ingStats, k, k, f));
+  }
+  const rank = m => Object.values(m).filter(x => x.n >= 2).map(x => ({ ...x, rate: x.f / x.n }))
+    .sort((a, b) => b.rate - a.rate || b.f - a.f || b.n - a.n);
+  const days = [...new Set(ents.map(e => e.ts.slice(0, 10)))].sort();
+  const avg = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  for (const d of days) { const { t } = sumDay(ents.filter(e => e.ts.startsWith(d))); for (const k in avg) avg[k] += t[k] / days.length; }
+  const epFoods = eps.map(s => ({ s, foods: ents.filter(e => within(e, s)) }));
+  return { ents, all, eps, foods: rank(foodStats), ings: rank(ingStats), baseline: ents.length ? followedCount / ents.length : 0, days, avg, epFoods };
+}
+
+/* ---------- Report ---------- */
+function reportRange() {
+  let from = $('#r-from').value, to = $('#r-to').value;
+  if (from && to && from > to) [from, to] = [to, from];
+  return { from, to };
+}
+function initReportDates() {
+  const keys = [...S.entries, ...S.symptoms].map(x => x.ts.slice(0, 10)).sort();
+  $('#r-to').value = todayKey();
+  $('#r-from').value = keys.length ? keys[0] : shiftKey(todayKey(), -6);
+}
+function renderReport() {
+  if (!$('#r-from').value) initReportDates();
+  const { from, to } = reportRange();
+  const A = analyse(from, to), st = S.settings;
+  const pct = x => r0(x * 100) + '%';
+  const top = (list, n) => list.slice(0, n).map(x => `<tr><td>${esc(x.label)}</td><td class="r num">${x.n}</td><td class="r num">${x.f}</td><td class="r num">${pct(x.rate)}</td></tr>`).join('');
+  const el = $('#r-preview');
+  if (!A.ents.length && !A.all.length) { el.innerHTML = `<div class="empty"><strong>Nothing in this date range</strong>Log some food and symptoms and the preview appears here.</div>`; return; }
+  el.innerHTML = `
+    <h2>Preview</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="k">Days logged</div><div class="v num">${A.days.length}</div></div>
+      <div class="stat"><div class="k">Food entries</div><div class="v num">${A.ents.length}</div></div>
+      <div class="stat"><div class="k">Episodes (sev ${st.minSev}+)</div><div class="v num">${A.eps.length}</div></div>
+      <div class="stat"><div class="k">Avg kcal / day</div><div class="v num">${r0(A.avg.kcal).toLocaleString('en-NZ')}</div></div>
+    </div>
+    ${A.eps.length && A.ents.length ? `
+    <p class="hint" style="margin:0">${pct(A.baseline)} of all food entries were followed by an episode within ${st.windowH} h. Items well above that are worth raising. This shows timing only and doesn't prove a food is the cause.</p>
+    ${A.ings.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Ingredient</th><th class="r">Eaten</th><th class="r">Then symptoms</th><th class="r">Rate</th></tr></thead><tbody>${top(A.ings, 8)}</tbody></table></div>` : ''}
+    ${A.foods.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Food</th><th class="r">Eaten</th><th class="r">Then symptoms</th><th class="r">Rate</th></tr></thead><tbody>${top(A.foods, 5)}</tbody></table></div>` : ''}
+    ${!A.ings.length && !A.foods.length ? '<p class="hint" style="margin:0">Patterns appear once a food or ingredient has been eaten at least twice.</p>' : ''}`
+    : `<p class="hint" style="margin:0">Patterns appear once you have both food entries and at least one symptom of severity ${st.minSev} or more.</p>`}`;
+}
+$('#r-from').addEventListener('change', renderReport);
+$('#r-to').addEventListener('change', renderReport);
+
+const clean = s => String(s ?? '').replace(/[–—]/g, '-').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/…/g, '...').replace(/[^\x09\x0a\x0d\x20-\x7e\xa0-\xff]/g, '');
+function buildPDF() {
+  const { from, to } = reportRange();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const A = analyse(from, to), st = S.settings;
+  const M = 14, PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight();
+  const GREEN = [29, 107, 85], SYMP = [248, 233, 223];
+  const pct = x => r0(x * 100) + '%';
+  let y = 18;
+  const heading = (txt, size = 12.5) => {
+    if (y > PH - 40) { doc.addPage(); y = 18; }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(size); doc.setTextColor(22, 32, 27); doc.text(clean(txt), M, y); y += 5;
+  };
+  const para = txt => {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(80, 90, 85);
+    const lines = doc.splitTextToSize(clean(txt), PW - 2 * M);
+    if (y + lines.length * 4 > PH - 20) { doc.addPage(); y = 18; }
+    doc.text(lines, M, y); y += lines.length * 4 + 2;
+  };
+  const table = opts => {
+    doc.autoTable(Object.assign({
+      startY: y, margin: { left: M, right: M, bottom: 18 }, theme: 'grid',
+      styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.6, lineColor: [215, 222, 217], lineWidth: 0.2, textColor: [22, 32, 27], overflow: 'linebreak' },
+      headStyles: { fillColor: GREEN, textColor: 255, fontStyle: 'bold' }
+    }, opts));
+    y = doc.lastAutoTable.finalY + 8;
+  };
+
+  // Title block
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(22, 32, 27);
+  doc.text('Food and Symptom Diary', M, y); y += 7;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(80, 90, 85);
+  if (st.name) { doc.text(clean(st.name), M, y); y += 5; }
+  doc.text(clean(`Period: ${fmtLong(from)} to ${fmtLong(to)}   |   Generated ${fmtLong(todayKey())}`), M, y); y += 9;
+
+  // Summary
+  heading('Summary');
+  table({
+    body: [
+      ['Days with food logged', String(A.days.length)],
+      ['Food and drink entries', String(A.ents.length)],
+      ['Symptoms recorded', String(A.all.length)],
+      [`Symptom episodes (severity ${st.minSev}/10 or more)`, String(A.eps.length)],
+      ['Average daily intake on logged days', A.days.length ? `${r0(A.avg.kcal)} kcal  |  protein ${r0(A.avg.protein)} g  |  carbs ${r0(A.avg.carbs)} g  |  fat ${r0(A.avg.fat)} g` : '-']
+    ],
+    theme: 'plain', styles: { fontSize: 9, cellPadding: 1.4 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 75 } }
+  });
+
+  // Symptom types tally
+  if (A.all.length) {
+    const tally = {};
+    A.all.forEach(s => { tally[s.type] = tally[s.type] || { n: 0, max: 0, sum: 0 }; tally[s.type].n++; tally[s.type].sum += s.severity; tally[s.type].max = Math.max(tally[s.type].max, s.severity); });
+    heading('Symptoms by type');
+    table({
+      head: [['Symptom', 'Times', 'Average severity', 'Worst']],
+      body: Object.entries(tally).sort((a, b) => b[1].n - a[1].n).map(([k, v]) => [k, v.n, (v.sum / v.n).toFixed(1) + '/10', v.max + '/10']),
+      columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } }
+    });
+    const stools = A.all.filter(s => s.bristol);
+    if (stools.length) {
+      const bc = {}; stools.forEach(s => bc[s.bristol] = (bc[s.bristol] || 0) + 1);
+      para(`Stool form (Bristol scale) recorded ${stools.length} times: ` + Object.keys(bc).sort().map(k => `type ${k} x${bc[k]}`).join(', ') + '.');
+    }
+  }
+
+  // Episodes with preceding foods
+  if (A.eps.length) {
+    heading(`Symptom episodes and food eaten in the ${st.windowH} hours before`);
+    table({
+      head: [['When', 'Symptom', 'Severity', 'Notes', `Eaten in previous ${st.windowH} h`]],
+      body: A.epFoods.map(({ s, foods }) => [
+        clean(`${fmtDay(s.ts.slice(0, 10))} ${timeOf(s.ts)}`),
+        clean(s.type + (s.bristol ? ` (Bristol ${s.bristol})` : '') + (s.duration ? `, ${s.duration} min` : '')),
+        s.severity + '/10', clean(s.notes || ''),
+        clean(foods.length ? foods.map(f => `${timeOf(f.ts)} ${f.name}`).join('\n') : 'Nothing logged')
+      ]),
+      columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 32 }, 2: { cellWidth: 16, halign: 'right' }, 3: { cellWidth: 40 } }
+    });
+  }
+
+  // Patterns
+  if (A.eps.length && A.ents.length) {
+    heading('Patterns between food and symptoms');
+    para(`Method: for every food or ingredient eaten at least twice in this period, the table shows how often a symptom episode (severity ${st.minSev}/10 or more) was recorded within ${st.windowH} hours afterwards. Across all ${A.ents.length} food entries, ${pct(A.baseline)} were followed by an episode, so items well above that baseline may be worth discussing. Ingredients come from product labels (Open Food Facts) or were typed in by me. This shows timing only and does not establish cause.`);
+    if (A.ings.length) {
+      table({
+        head: [['Ingredient or allergen', 'Times eaten', 'Followed by episode', 'Rate']],
+        body: A.ings.slice(0, 25).map(x => [clean(x.label), x.n, x.f, pct(x.rate)]),
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } }
+      });
+    }
+    if (A.foods.length) {
+      table({
+        head: [['Food', 'Times eaten', 'Followed by episode', 'Rate']],
+        body: A.foods.slice(0, 20).map(x => [clean(x.label), x.n, x.f, pct(x.rate)]),
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } }
+      });
+    }
+  }
+
+  // Daily log
+  const allDays = [...new Set([...A.ents, ...A.all].map(x => x.ts.slice(0, 10)))].sort();
+  if (allDays.length) {
+    doc.addPage(); y = 18;
+    heading('Daily log', 14); y += 1;
+    for (const d of allDays) {
+      const ents = A.ents.filter(e => e.ts.startsWith(d)), syms = A.all.filter(s => s.ts.startsWith(d));
+      const { t, missing } = sumDay(ents);
+      heading(`${fmtLong(d)}   -   ${r0(t.kcal)} kcal, P ${r0(t.protein)} g, C ${r0(t.carbs)} g, F ${r0(t.fat)} g${missing ? `  (${missing} without nutrition data)` : ''}`, 10);
+      const rows = [...ents.map(e => ({ k: 'f', ...e })), ...syms.map(s => ({ k: 's', ...s }))].sort(byTs).map(x => {
+        if (x.k === 'f') {
+          const n = totalsOf(x);
+          return [timeOf(x.ts), clean(x.meal), clean(x.name + (x.brand ? ` (${x.brand})` : '') + (x.notes ? `\nNote: ${x.notes}` : '')), clean(fmtAmount(x)),
+            n.kcal != null ? r0(n.kcal) : '-', n.protein != null ? `${r0(n.protein)}/${r0(n.carbs || 0)}/${r0(n.fat || 0)}` : '-',
+            clean((x.ingredients || 'Not recorded') + ((x.allergens || []).length ? `\nAllergens: ${x.allergens.join(', ')}` : ''))];
+        }
+        return { symptom: true, row: [timeOf(x.ts), 'SYMPTOM', clean(`${x.type}  ${x.severity}/10` + (x.bristol ? `  Bristol ${x.bristol}` : '') + (x.duration ? `  ${x.duration} min` : '')), '', '', '', clean(x.notes || '')] };
+      });
+      const body = rows.map(r => r.symptom ? r.row : r);
+      const sympIdx = new Set(rows.map((r, i) => r.symptom ? i : -1).filter(i => i >= 0));
+      table({
+        head: [['Time', 'Meal', 'Food / symptom', 'Amount', 'kcal', 'P/C/F g', 'Ingredients']],
+        body,
+        styles: { fontSize: 7.5, cellPadding: 1.4, lineColor: [215, 222, 217], lineWidth: 0.2, textColor: [22, 32, 27], overflow: 'linebreak' },
+        columnStyles: { 0: { cellWidth: 11 }, 1: { cellWidth: 16 }, 2: { cellWidth: 38 }, 3: { cellWidth: 22 }, 4: { cellWidth: 10, halign: 'right' }, 5: { cellWidth: 15 } },
+        didParseCell: data => { if (data.section === 'body' && sympIdx.has(data.row.index)) { data.cell.styles.fillColor = SYMP; data.cell.styles.fontStyle = data.column.index === 2 ? 'bold' : 'normal'; } }
+      });
+    }
+  }
+
+  // Footer
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(120, 130, 125);
+    doc.text('Self-recorded diary. Product data from Open Food Facts (openfoodfacts.org) where scanned; otherwise entered manually.', M, PH - 8);
+    doc.text(`Page ${i} of ${pages}`, PW - M, PH - 8, { align: 'right' });
+  }
+  return { doc, name: `food-symptom-diary_${from}_to_${to}.pdf` };
+}
+async function shareOrSave(blob, name, title, preferShare) {
+  const file = new File([blob], name, { type: blob.type });
+  if (preferShare && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+function makeReport(share) {
+  if (!window.jspdf) { toast('PDF library failed to load. Reload the app and try again.'); return; }
+  const { from, to } = reportRange();
+  if (!from || !to) { toast('Pick a date range first.'); return; }
+  try {
+    const { doc, name } = buildPDF();
+    shareOrSave(doc.output('blob'), name, 'Food and symptom diary', share);
+  } catch (e) { console.error(e); toast('Could not build the PDF: ' + e.message); }
+}
+$('#r-share').addEventListener('click', () => makeReport(true));
+$('#r-download').addEventListener('click', () => makeReport(false));
+
+/* ---------- Backup ---------- */
+$('#backup').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ app: 'food-tracker', version: 1, exported: new Date().toISOString(), ...S }, null, 1)], { type: 'application/json' });
+  shareOrSave(blob, `food-tracker-backup_${todayKey()}.json`, 'Food Tracker backup', true);
+});
+$('#restore-file').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!Array.isArray(d.entries) || !Array.isArray(d.symptoms)) throw new Error('not a Food Tracker backup');
+    const merge = (cur, inc) => { const ids = new Set(cur.map(x => x.id)); return cur.concat(inc.filter(x => x && x.id && x.ts && !ids.has(x.id))); };
+    const before = S.entries.length + S.symptoms.length;
+    S.entries = merge(S.entries, d.entries); S.symptoms = merge(S.symptoms, d.symptoms);
+    S.foods = Object.assign({}, d.foods || {}, S.foods);
+    save(); render();
+    toast(`Restored ${S.entries.length + S.symptoms.length - before} entries`);
+  } catch (err) { toast("Couldn't restore: " + err.message); }
+});
+$('#wipe').addEventListener('click', ev => armButton(ev.currentTarget, 'Tap again to delete everything', () => {
+  const keep = S.settings; S = defaults(); S.settings = keep; save(); render(); toast('All entries deleted');
+}));
+
+/* ---------- Wiring ---------- */
+$$('.tabs button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+$('#day-prev').addEventListener('click', () => { dayKey = shiftKey(dayKey, -1); renderDay(); });
+$('#day-next').addEventListener('click', () => { if (dayKey < todayKey()) { dayKey = shiftKey(dayKey, 1); renderDay(); } });
+$('#timeline').addEventListener('click', e => {
+  const f = e.target.closest('[data-food]'), s = e.target.closest('[data-symp]');
+  if (f) {
+    const entry = S.entries.find(x => x.id === f.dataset.food); if (!entry) return;
+    editingFood = entry.id; openSheet('food'); showForm({ ...entry }, { entry });
+  }
+  if (s) { const sy = S.symptoms.find(x => x.id === s.dataset.symp); if (sy) openSymptom(sy); }
+});
+$('#daylist').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (b) { dayKey = b.dataset.day; setView('day'); } });
+$('#add-food').addEventListener('click', openFoodFinder);
+$('#add-symptom').addEventListener('click', () => openSymptom(null));
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (!$('#scanner').hidden) stopScanner();
+  else if (!$('#food-sheet').hidden) closeSheet('food');
+  else if (!$('#symp-sheet').hidden) closeSheet('symp');
+});
+
+const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+if (standalone) $('#install-card').hidden = true;
+else {
+  let dismissed = false; try { dismissed = localStorage.getItem('ft.hint') === '1'; } catch (e) {}
+  if (!dismissed) {
+    const h = $('#install-hint');
+    h.innerHTML = 'Add this app to your home screen so your log is kept safe. See Settings for how. <button class="btn small" id="hint-x" style="margin-left:6px">Got it</button>';
+    h.hidden = false;
+    $('#hint-x').addEventListener('click', () => { h.hidden = true; try { localStorage.setItem('ft.hint', '1'); } catch (e) {} });
+  }
+}
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+setView('day');
+</script>
+</body>
+</html>
